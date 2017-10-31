@@ -244,3 +244,77 @@ end
 ```
 
 This doesn't save in number of lines, but it does increase the readability as it groups the operations on the same object into a nested block and also returns the object, removing the need to explicitly return it at the end if the previous method doesn't return the same thing.
+
+## Prefer early returns
+
+Early returns to guard against undesired conditions is a good practice. It lets the reader of the code avoid reading the whole logic if the guarding condition is not met. It also avoids the unnecessary nesting that would have been created had the early return not been used.
+
+E.g.:
+
+``` ruby
+def charge_purchase(order)
+  return unless order.fulfilled?
+  OrderChargeConfirmation.new(order).create!
+end
+```
+
+The early return here signals that the charge can only be processed if the order has been fulfilled. Compare that with the non-early return version:
+
+``` ruby
+def charge_purchase(order)
+  if order.fulfilled?
+    OrderChargeConfirmation.new(order).create!
+  else
+    nil
+  end
+end
+```
+
+This version has the actual logic nested inside `if` statements. It also demotes the early return to the end of the block. This is both less readable and is prone to complexity as any added conditions will increase the cyclomatic complexity of this method. The early return is preferable.
+
+## Prefer the `!` version of methods
+
+If there are two versions of a method, and one of them raises an exception on failure and the other doesn't, prefer using the exception raising version. This is useful to surface the errors in your code early and avoids unwanted side-effects from happening. It also helps you to avoid writing defensive code riddled with conditionals.
+
+It is important to note that exception-rescuing mechanism shouldn't be used in lieu of conditionals.
+
+## Avoid the Control Couple
+
+Consider the following code:
+
+``` ruby
+status = order.paid?
+update_charge_status(status)
+
+def update_charge_status(paid)
+  if paid
+    send_confirmation_notification
+    mark_as_completed
+  else
+    initiate_payment
+    update_payment_status
+  end
+end
+```
+
+Here, the calling code knows what the `update_charge_status` method is going to do. This is an implicit coupling which we are trying to switch on by using the `status` argument. This argument and the corresponding method is called a `Control Couple` because the argument essentially controls what happens inside the method. This abstraction is unnecessary and as the calling code already has enough information to predict what the method will do we can refactor that method into two different methods and extract the conditional up the stack like so:
+
+``` ruby
+if order.paid?
+  confirm_charge
+else
+  initiate_charge
+end
+
+def confirm_charge
+  send_confirmation_notification
+  mark_as_completed
+end
+
+def initiate_charge
+  initiate_payment
+  update_payment_status
+end
+```
+
+This enforces the single responsibility principle for the methods and avoids the coupling of the update methods with the order payment status.
