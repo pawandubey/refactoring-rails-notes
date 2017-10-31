@@ -165,3 +165,82 @@ end
 ```
 
 The advantages offered by a Policy object is that it gets rid of the private methods (and hence makes them testable).
+
+## Have a bin/setup
+
+Having an easy way to setup the dev environment (preferably with a single command) is a great advantage for teams. This script can be in the form of a rake task or a combination of many of them or even a class that sets up and creates required records to the get application in a runnable state.
+
+Testing this script is not high priority as it is a development tool.
+
+## Promote TODO comments to separate issues
+
+Having TODO comments in code is not generally productive as the author of those comments imagines. They get lost and nobody really checks for them everyday. Adding these comments to the team's backlog as issues prioritizes their fix and avoids the situation where TODO comments linger on in the codebase for years without anyone noticing.
+
+## Comments are OK with non-standard approaches
+
+Certain times we need to do something non-standard or clever to achieve some much needed performance benefit or behavior that the standard approach doesn't give us. Explanatory comment about the justification for such approaches are fine and help people understand the intention.
+
+## Order methods by layer of abstraction
+
+Consider the following code block:
+
+``` ruby
+# toplevel
+def top_level_method
+  level_1_method_1
+  level_1_method_2
+end
+
+# level 1
+def level_1_method_1
+  level_2_method_1 && level_2_method_2
+end
+
+def level_1_method_2
+  level_2_method_1 && !level_2_method_2
+end
+
+# level 2
+def level_2_method_1
+  do_something
+end
+
+def level_2_method_2
+  do_something_else
+end
+```
+
+The definitions of methods in this code block are ordered in the order these methods are encountered in the call stack. This property is nice in two ways:
+
+- Each method is above all of its constituent methods. This means if we want to understand the underlying logic, we only need to move in one direction in the file - downwards.
+- Since each abstraction level is isolated from the others, it is easy to extract one of the abstraction levels into a separate class if it becomes too big. E.g. if level 2 in the example comes out to have more than 4 closely related methods which are used by methods in level 3, we can extract all of level 2 into a new class with public methods which can be called by level 2 methods.
+
+
+## Encourage use of Object#tap
+
+`Object#tap` is a method that yields the object it is called on to its block, and at the end returns the same object. This property is very useful when you have a series of method calls on the same object one after the other.
+
+E.g.:
+
+``` ruby
+def do_something
+  obj.do_first_thing
+  obj.do_second_thing
+  obj.do_third_thing
+  obj
+end
+```
+
+This pattern can be refactored into :
+
+``` ruby
+def do_something
+  obj.tap do |o|
+    o.do_first_thing
+    o.do_second_thing
+    o.do_third_thing
+  end
+end
+```
+
+This doesn't save in number of lines, but it does increase the readability as it groups the operations on the same object into a nested block and also returns the object, removing the need to explicitly return it at the end if the previous method doesn't return the same thing.
