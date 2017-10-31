@@ -93,3 +93,75 @@ These situations can be better handled by Form Objects. Form objects are POROs t
 This allows the construction of flat forms as well as makes the relation explicit. [This blog post from Thoughtbot](https://robots.thoughtbot.com/activemodel-form-objects) is a good primer for Form Objects.
 
 There are some cons that come along with the pros though. Form objects introduce duplication if validations and does not support uniqueness validations with the rails validation helpers. This forces us to duplicate the whole uniqueness validation logic if require it in our application.
+
+
+## Refactor Compound Conditionals into Methods
+
+Consider the following block of code:
+
+``` ruby
+def eligible_for_return?
+  expired_orders.exclude?(self) && self.value > MINIMUM_RETURN_VALUE
+end
+```
+
+It checks if an order is eligible for return by checking two conditions: whether it is not expired and if the value is greater than the minimum required value for an order to be returnable. This logic is encoded in the code but the code doesn't say that at first glance. We have to look at the `expired_orders` method to see what it returns and also we can't be sure what the `self.value > MINIMUM_RETURN_VALUE` is supposed to mean. These conditions are just examples and can be replaced by any other non-trivial conditions. We also can't test this method properly without jumping through hoops.
+
+This can be made better by refactoring the two conditions out into single-line methods (preferably private).
+
+``` ruby
+def eligible_for_return?
+  not_expired? && over_minimum_return_value?
+end
+
+private
+
+def not_expired?
+  expired_orders.exclude?(self)
+end
+
+def over_minimum_return_value?
+  self.value > MINIMUM_RETURN_VALUE
+end
+```
+
+The conditions are clearer now and we don't need to jump through hoops to test the method as we can with good confidence stub the predicates out to return what we want them to.
+
+
+### Refactor multiple Compound Conditionals into a Policy Class
+
+If in the previous example, there were more than three conditions involved in the determining whether an order is returnable, we can do better than refactoring them out into methods. It is better to create a Policy Object that handles these conditions internally and provides a single point to add more conditions in the future or modify the existing ones.
+
+E.g.:
+
+``` ruby
+def eligible_for_return?
+  ReturnEligibilityVerifier.new(self).eligible?
+end
+
+class ReturnEligibilityVerifier
+  attr_reader :order
+
+  def initialize(order)
+    @order = order
+  end
+
+  def eligible?
+    not_expired? && over_minimum_return_value? && customer_not_fraudulent?
+  end
+
+  def not_expired?
+    Order.expired_orders.exclude?(order)
+  end
+
+  def over_minimum_return_value?
+    order.value > Order::MINIMUM_RETURN_VALUE
+  end
+
+  def customer_not_fraudulent?
+    order.user.not_fraudulent?
+  end
+end
+```
+
+The advantages offered by a Policy object is that it gets rid of the private methods (and hence makes them testable).
