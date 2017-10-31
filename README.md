@@ -82,3 +82,14 @@ The cons of this pattern are that it introduces some duplication of logic as wel
 ### Alternative
 
 An alternative approach is to use the `SimpleDelegator` mechanism provided by Ruby. [This post on Arkency](http://blog.arkency.com/2015/05/extract-a-service-object-using-simpledelegator/) brilliantly documents how `SimpleDelegator` can be used to construct _composable_ service objects. Composability allows us to chain multiple `SimpleDelegator` based service objects to accomplish complex actions without making the controller complicated.
+
+
+## Form Objects
+
+Many times we have to design forms for objects that take nested objects as attributes. Rails has the `accepts_nested_attributes_for` helper for this very purpose. However, testing models using `accepts_nested_attributes_for` is hard. Also the parameters returned from the form are in an inflexible format. This approach is also very _magical_ and forces iteration over nested parameters.
+
+These situations can be better handled by Form Objects. Form objects are POROs that include the `ActiveModel::Model` module. This allows them to act like an `ActiveRecord` model and so they can be used in place of actual models in the view with the `form_for` helper.
+
+This allows the construction of flat forms as well as makes the relation explicit. [This blog post from Thoughtbot](https://robots.thoughtbot.com/activemodel-form-objects) is a good primer for Form Objects.
+
+There are some cons that come along with the pros though. Form objects introduce duplication if validations and does not support uniqueness validations with the rails validation helpers. This forces us to duplicate the whole uniqueness validation logic if require it in our application.
