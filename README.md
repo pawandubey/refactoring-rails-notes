@@ -77,7 +77,7 @@ end
 The `UserConfirmationMailer` service object wraps all the complexity around sending confirmation mails and provides an explicit, visible, non-surprising implementation of the logic which can be tested easily.
 
 
-The cons of this pattern are that it introduces some duplication of logic as well as it can introduce mutations outside of the controllers which can be hard to track down by the first glance.
+The cons of this pattern are that it introduces some duplication of logic as well as mutations outside of the controllers which can be hard to track down at a glance.
 
 ### Alternative
 
@@ -86,13 +86,13 @@ An alternative approach is to use the `SimpleDelegator` mechanism provided by Ru
 
 ## Form Objects
 
-Many times we have to design forms for objects that take nested objects as attributes. Rails has the `accepts_nested_attributes_for` helper for this very purpose. However, testing models using `accepts_nested_attributes_for` is hard. Also the parameters returned from the form are in an inflexible format. This approach is also very _magical_ and forces iteration over nested parameters.
+Often we have to design forms for objects that take nested objects as attributes. Rails has the `accepts_nested_attributes_for` helper for this very purpose. However, testing models using `accepts_nested_attributes_for` is hard. Also the parameters returned from the form are in an inflexible format. This approach is also very _magical_ and forces iteration over nested parameters.
 
 These situations can be better handled by Form Objects. Form objects are POROs that include the `ActiveModel::Model` module. This allows them to act like an `ActiveRecord` model and so they can be used in place of actual models in the view with the `form_for` helper.
 
-This allows the construction of flat forms as well as makes the relation explicit. [This blog post from Thoughtbot](https://robots.thoughtbot.com/activemodel-form-objects) is a good primer for Form Objects.
+This allows the construction of flat forms along with making the relation explicit. [This blog post from Thoughtbot](https://robots.thoughtbot.com/activemodel-form-objects) is a good primer for Form Objects.
 
-There are some cons that come along with the pros though. Form objects introduce duplication if validations and does not support uniqueness validations with the rails validation helpers. This forces us to duplicate the whole uniqueness validation logic if require it in our application.
+There are some cons that come along with the pros though. Form objects introduce duplication of validations and does not support uniqueness validations with the rails validation helpers. This forces us to duplicate the whole uniqueness validation logic if we require it in our application.
 
 
 ## Refactor Compound Conditionals into Methods
@@ -105,9 +105,9 @@ def eligible_for_return?
 end
 ```
 
-It checks if an order is eligible for return by checking two conditions: whether it is not expired and if the value is greater than the minimum required value for an order to be returnable. This logic is encoded in the code but the code doesn't say that at first glance. We have to look at the `expired_orders` method to see what it returns and also we can't be sure what the `self.value > MINIMUM_RETURN_VALUE` is supposed to mean. These conditions are just examples and can be replaced by any other non-trivial conditions. We also can't test this method properly without jumping through hoops.
+It checks if an order is eligible for return by checking two conditions: whether it has expired and if the value is greater than the minimum required value for an order to be returnable. This logic is encoded in the code but the code doesn't say that at first glance. We have to look at the `expired_orders` method to see what it returns and we also can't be sure what the `self.value > MINIMUM_RETURN_VALUE` is supposed to mean. These conditions are just examples and can be replaced by any other non-trivial conditions. We also can't test this method properly without jumping through hoops.
 
-This can be made better by refactoring the two conditions out into single-line methods (preferably private).
+This can be improved by refactoring the two conditions out into single-line methods (preferably private).
 
 ``` ruby
 def eligible_for_return?
@@ -125,12 +125,12 @@ def over_minimum_return_value?
 end
 ```
 
-The conditions are clearer now and we don't need to jump through hoops to test the method as we can with good confidence stub the predicates out to return what we want them to.
+The conditions are clearer now and we don't need to jump through hoops to test the method as we can stub the predicates out with confidence to return what we want them to.
 
 
 ### Refactor multiple Compound Conditionals into a Policy Class
 
-If in the previous example, there were more than three conditions involved in the determining whether an order is returnable, we can do better than refactoring them out into methods. It is better to create a Policy Object that handles these conditions internally and provides a single point to add more conditions in the future or modify the existing ones.
+If in the previous example, there were more than three conditions involved in determining whether an order is returnable, we can do better than just refactoring them out into methods. It is better to create a Policy Object that handles these conditions internally and provides a single point to add more conditions in the future or modify the existing ones.
 
 E.g.:
 
@@ -164,11 +164,11 @@ class ReturnEligibilityVerifier
 end
 ```
 
-The advantages offered by a Policy object is that it gets rid of the private methods (and hence makes them testable).
+The advantages offered by a Policy object is that it gets rid of the private methods (and hence makes them testable). This is a special case of the [Extract Class]() refactoring method.
 
 ## Have a bin/setup
 
-Having an easy way to setup the dev environment (preferably with a single command) is a great advantage for teams. This script can be in the form of a rake task or a combination of many of them or even a class that sets up and creates required records to the get application in a runnable state.
+Having an easy way to setup the dev environment (preferably with a single command) is a great advantage for teams. This script can be in the form of a rake task or a combination of many of them or even a class that sets up and creates required records to get the application in a runnable state.
 
 Testing this script is not high priority as it is a development tool.
 
@@ -213,12 +213,12 @@ end
 The definitions of methods in this code block are ordered in the order these methods are encountered in the call stack. This property is nice in two ways:
 
 - Each method is above all of its constituent methods. This means if we want to understand the underlying logic, we only need to move in one direction in the file - downwards.
-- Since each abstraction level is isolated from the others, it is easy to extract one of the abstraction levels into a separate class if it becomes too big. E.g. if level 2 in the example comes out to have more than 4 closely related methods which are used by methods in level 3, we can extract all of level 2 into a new class with public methods which can be called by level 2 methods.
+- Since each abstraction level is isolated from the others, it is easy to extract one of the abstraction levels into a separate class if it becomes too big. E.g. if level 2 in the example comes out to have more than 4 closely related methods which are used by methods in level 1, we can extract all of level 2 into a new class with public methods which can be called by level 1 methods.
 
 
 ## Encourage use of Object#tap
 
-`Object#tap` is a method that yields the object it is called on to its block, and at the end returns the same object. This property is very useful when you have a series of method calls on the same object one after the other.
+`Object#tap` is a method that yields the object it is called on (the receiver) to its block, and at the end returns the same object. This property is very useful when you have a series of method calls on the same object one after the other.
 
 E.g.:
 
@@ -274,7 +274,7 @@ This version has the actual logic nested inside `if` statements. It also demotes
 
 ## Prefer the `!` version of methods
 
-If there are two versions of a method, and one of them raises an exception on failure and the other doesn't, prefer using the exception raising version. This is useful to surface the errors in your code early and avoids unwanted side-effects from happening. It also helps you to avoid writing defensive code riddled with conditionals.
+If there are two versions of a method, and one of them raises an exception on failure and the other doesn't, prefer using the exception raising version. This is useful to surface the errors in your code early and avoid unwanted side-effects from happening. It also helps you to avoid writing defensive code riddled with conditionals.
 
 It is important to note that exception-rescuing mechanism shouldn't be used in lieu of conditionals.
 
@@ -377,7 +377,7 @@ Also see: [Replace conditional with polymorphism](https://refactoring.com/catalo
 
 ## Utilize the four-stage test pattern
 
-Unit tests (almost) without exception do four things: setup the fixture for the test, do something to the fixture, verify that the result of the exercise matches expectations, and clear up the setup at the end. The four phases here are _setup, exercise, verify_ and __teardown_. By clearly identifying these four steps in each of our test cases, we can make tests both easier to understand and change.
+Unit tests (almost) without exception do four things: setup the fixture for the test, do something to the fixture, verify that the result of the exercise matches expectations, and clear up any side-effects at the end. The four phases here are _setup, exercise, verify_ and __teardown_. By clearly identifying these four steps in each of our test cases, we can make tests both easier to understand and change.
 
 E.g.
 
@@ -426,11 +426,11 @@ And instantly get the benfit of increased inspectability in case our test fails.
 
 ## Avoid mystery guest
 
-Continuing from our earlier point about the four-phase test pattern, if the relationship between the setup and verification logic is unclear to the test reader, it's possible this is caused by some part of the test is being executed _outside_ the test itself. This invisible part is called a Mystery Guest. Sometimes, avoiding it is as simple as using proper variable names for our fixtures but often it's a matter of not making our tests _too_ DRY. Having shared setup (e.g. in the form of widely used fixtures) also causes coupling between different tests that is hard to resolve if the problem grows.
+Continuing from our earlier point about the four-phase test pattern, if the relationship between the setup and verification logic is unclear to the test reader, it's possible this is caused by some part of the test being executed _outside_ the test itself. This invisible part is called a Mystery Guest. Sometimes, avoiding it is as simple as using proper variable names for our fixtures but often it's a matter of not making our tests _too_ DRY. Having shared setup (e.g. in the form of widely used fixtures) also causes coupling between different tests that is hard to resolve if the problem grows.
 
 Some possible solutions for this problem are:
-- Using fresh fixtures by inlining setups in tests
-- Using clear names for variables and helper methods in tests
+- Using fresh fixtures by inlining setups
+- Using clear names for variables and helper methods
 - Repeating yourself for the sake of clarity
 
 Avoiding Mystery Guests help make our tests into actual _documentation_ for our code.
@@ -450,7 +450,11 @@ So don't do things like:
 ``` ruby
 # bad
 test "saves user correctly"
-  assert @user.save
+  @user = User.new
+
+  @user.save
+
+  assert_equal User.last.id, @user.id
 end
 ```
 
