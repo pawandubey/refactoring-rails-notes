@@ -318,3 +318,142 @@ end
 ```
 
 This enforces the single responsibility principle for the methods and avoids the coupling of the update methods with the order payment status.
+
+## Avoid using instance variables in partials
+
+Partials are a valuable feature because they add reusability to our views. Using instance variables in partials directly couples them to specific controllers, essentially erasing their reusability. It is preferable to keep partials reuasble across controllers and actions as much as possible, which means that we should avoid directly using instace variables in them, and instead rely on locals for passing in values using the `locals` option to `render`.
+
+See https://guides.rubyonrails.org/layouts_and_rendering.html#local-variables
+
+## Replace foo(a), bar(a), baz(a) with a.foo, a.bar, a.baz
+
+If you see several methods that depend on the same parameter, it's a good candidate for applying the Extract Class refactoring, and specifically the [Combine Functions into Class](https://refactoring.com/catalog/combineFunctionsIntoClass.html) method. The repeated use of the same argument is a smell that there's a set of common behaviour screaming to be extracted out.
+
+## Tell, don't ask
+
+We should aim to colocate data with methods that operate on that data. This is one of the core tenets of object oriented design and manifests quite prominently in the form of classes and modules. However, it is also easy to overlook this rule by violating the _tell, don't ask_ principle.
+
+E.g.
+
+Instead of
+
+``` ruby
+if @user.has_address?
+  @user.address.street_name
+else
+  "Unknown street"
+end
+```
+
+We can do:
+
+``` ruby
+class Adress
+  def street_name
+    @street_name
+  end
+end
+
+class NullAddress
+  def street_name
+    "No street name"
+  end
+end
+
+class User
+  def address
+    @address || NullAddress.new
+  end
+
+  def street_name
+    address.street_name
+  end
+end
+```
+
+Some caveats do apply, of course. One of them being the potential to violate the single responsibility principle by trying to colocate data and methods dogmatically. Another one is the inclination of applying this rule in a way that discourages all kinds of query methods (e.g. getters).
+
+Also see: [Replace conditional with polymorphism](https://refactoring.com/catalog/replaceConditionalWithPolymorphism.html)
+
+## Utilize the four-stage test pattern
+
+Unit tests (almost) without exception do four things: setup the fixture for the test, do something to the fixture, verify that the result of the exercise matches expectations, and clear up the setup at the end. The four phases here are _setup, exercise, verify_ and __teardown_. By clearly identifying these four steps in each of our test cases, we can make tests both easier to understand and change.
+
+E.g.
+
+``` ruby
+class UserTest < Minitest::TestCase
+  def setup
+    @user = User.new
+  end
+
+  def teardown
+  end
+
+  test "user without address is invalid" do
+    # exercise
+    @user.address = nil
+
+    # verify
+    refute_predicate @user, :valid?
+  end
+end
+```
+
+With Minitest, by using the `setup` and `teardown` methods, we can further clean-up each test case by only requiring the exercise and verification to be present. Judicious use of whitespace between these steps can also help increase legibility.
+
+## Compare properties instead of whole objects
+
+By comparing individual properties of objects instead of the complete objects themsleves, we can get clearer and easier to read error messages in tests. This is doubly true if we're comparing a collection with another.
+
+Instead of:
+
+``` ruby
+test "it has same users"
+  assert_equal [User.first, User.second], [first_user, second_user]
+end
+```
+
+We can do
+
+``` ruby
+test "it has same users"
+  assert_equal [User.first.id, User.second.id], [first_user.id, second_user.id]
+end
+```
+
+And instantly get the benfit of increased inspectability in case our test fails.
+
+## Avoid mystery guest
+
+Continuing from our earlier point about the four-phase test pattern, if the relationship between the setup and verification logic is unclear to the test reader, it's possible this is caused by some part of the test is being executed _outside_ the test itself. This invisible part is called a Mystery Guest. Sometimes, avoiding it is as simple as using proper variable names for our fixtures but often it's a matter of not making our tests _too_ DRY. Having shared setup (e.g. in the form of widely used fixtures) also causes coupling between different tests that is hard to resolve if the problem grows.
+
+Some possible solutions for this problem are:
+- Using fresh fixtures by inlining setups in tests
+- Using clear names for variables and helper methods in tests
+- Repeating yourself for the sake of clarity
+
+Avoiding Mystery Guests help make our tests into actual _documentation_ for our code.
+
+Also see: [Obscure Test](http://xunitpatterns.com/Obscure%20Test.html)
+
+## Don't test private methods
+
+Private methods should be used to support the public interface of a class and tests should only be written for this public interface. If you ever find yourself struggling to test some behaviour because it's provided by a private method, it's a signal that the behaviour should instead be extracted into a class that exposes it as a public method.
+
+## Don't test things that you don't need to
+
+It's important to only test the things that matter to keep your tests clean and noise-free. An example of an unnecessary test is testing behavior provided by ActiveRecord in your own models as that behaviour is already tested in the Rails codebase.
+
+So don't do things like:
+
+``` ruby
+# bad
+test "saves user correctly"
+  assert @user.save
+end
+```
+
+## Use REST
+
+Rails provides excellent support for RESTful design and it's beneficial to use as much of it as possible to get the most out of the convention-over-configuration approach. An example of this is using the `Noun#verb` pattern for controller actions that can be then tied to routes and views very easily.
