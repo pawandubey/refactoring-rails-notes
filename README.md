@@ -2,9 +2,36 @@
 
 Personal notes from the course [Refactoring Rails](https://www.refactoringrails.io/buy) by Ben Orenstein.
 
-# Notes
-
 These notes are grouped together by topic and do not correspond to the exact chapters (or sections, if you may) of the course. I have also added my own addendums wherever found necessary both in form of notes as well as explanatory code, which are different from the original videos.
+
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+**Table of Contents**
+
+- [Notes from Refactoring Rails](#notes-from-refactoring-rails)
+    - [Callbacks](#callbacks)
+        - [Alternative - SimpleDelegator](#alternative---simpledelegator)
+    - [Form Objects](#form-objects)
+    - [Refactor Compound Conditionals into Methods](#refactor-compound-conditionals-into-methods)
+    - [Refactor multiple Compound Conditionals into a Policy Class](#refactor-multiple-compound-conditionals-into-a-policy-class)
+    - [Have a bin/setup](#have-a-binsetup)
+    - [Promote TODO comments to separate issues](#promote-todo-comments-to-separate-issues)
+    - [Comments are OK with non-standard approaches](#comments-are-ok-with-non-standard-approaches)
+    - [Order methods by layer of abstraction](#order-methods-by-layer-of-abstraction)
+    - [Encourage use of Object#tap](#encourage-use-of-objecttap)
+    - [Prefer early returns](#prefer-early-returns)
+    - [Prefer the `!` version of methods](#prefer-the--version-of-methods)
+    - [Avoid the Control Couple](#avoid-the-control-couple)
+    - [Avoid using instance variables in partials](#avoid-using-instance-variables-in-partials)
+    - [Replace foo(a), bar(a), baz(a) with a.foo, a.bar, a.baz](#replace-fooa-bara-baza-with-afoo-abar-abaz)
+    - [Tell, don't ask](#tell-dont-ask)
+    - [Utilize the four-stage test pattern](#utilize-the-four-stage-test-pattern)
+    - [Compare properties instead of whole objects](#compare-properties-instead-of-whole-objects)
+    - [Avoid mystery guest](#avoid-mystery-guest)
+    - [Don't test private methods](#dont-test-private-methods)
+    - [Don't test things that you don't need to](#dont-test-things-that-you-dont-need-to)
+    - [Use REST](#use-rest)
+
+<!-- markdown-toc end -->
 
 ## Callbacks
 
@@ -79,7 +106,7 @@ The `UserConfirmationMailer` service object wraps all the complexity around send
 
 The cons of this pattern are that it introduces some duplication of logic as well as mutations outside of the controllers which can be hard to track down at a glance.
 
-### Alternative
+### Alternative - SimpleDelegator
 
 An alternative approach is to use the `SimpleDelegator` mechanism provided by Ruby. [This post on Arkency](http://blog.arkency.com/2015/05/extract-a-service-object-using-simpledelegator/) brilliantly documents how `SimpleDelegator` can be used to construct _composable_ service objects. Composability allows us to chain multiple `SimpleDelegator` based service objects to accomplish complex actions without making the controller complicated.
 
@@ -128,7 +155,7 @@ end
 The conditions are clearer now and we don't need to jump through hoops to test the method as we can stub the predicates out with confidence to return what we want them to.
 
 
-### Refactor multiple Compound Conditionals into a Policy Class
+## Refactor multiple Compound Conditionals into a Policy Class
 
 If in the previous example, there were more than three conditions involved in determining whether an order is returnable, we can do better than just refactoring them out into methods. It is better to create a Policy Object that handles these conditions internally and provides a single point to add more conditions in the future or modify the existing ones.
 
